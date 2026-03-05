@@ -1,179 +1,289 @@
-//set F0.02 to 2 (page 11 in manual) to 2 so it can communicate with the vfd
+/*
+=========================================================
+ESP32 RS485 VFD CONTROLLER
+=========================================================
 
-#include <HardwareSerial.h>
+This firmware allows an ESP32 to control a VFD over RS485
+using Modbus RTU. The ESP32 hosts a WiFi access point with
+a simple webpage containing three buttons:
 
-HardwareSerial VFD(2);
+Forward
+Reverse
+Stop
+
+Motor speed is set using the VFD keypad potentiometer.
+
+---------------------------------------------------------
+SUPPORTED VFD
+---------------------------------------------------------
+
+This code was written for VFDs using the common Chinese
+Modbus register layout where:
+
+Run / Stop / Direction register : 0x2000
+
+Value meanings:
+
+0 = Stop
+1 = Run Forward
+2 = Run Reverse
+
+Frequency is NOT set by this program and must be controlled
+by the keypad potentiometer.
+
+---------------------------------------------------------
+IMPORTANT VFD SETTINGS
+---------------------------------------------------------
+
+These parameters must be configured on the VFD.
+
+Run command source
+
+F0.02 = 2
+Meaning:
+2 = Run command from RS485 communication
+
+Frequency command source
+
+F0.03 = 4
+Meaning:
+4 = Keyboard potentiometer (speed set on keypad)
+
+Communication parameters
+
+FC.00 = 3
+Meaning:
+9600 baud
+
+FC.01 = 0
+Meaning:
+8 data bits
+No parity
+1 stop bit (8N1)
+
+FC.02 = 1
+Meaning:
+Modbus slave address = 1
+
+If the address is changed, update this line in the code:
+
+uint8_t addr = 1;
+
+---------------------------------------------------------
+RS485 WIRING
+---------------------------------------------------------
+
+ESP32 UART2 is used.
+
+ESP32 pin connections:
+
+GPIO17  → RS485 DI (driver input)
+GPIO16  → RS485 RO (receiver output)
+GPIO23  → RS485 DE + RE (direction control)
+GND     → RS485 GND
+
+RS485 module to VFD:
+
+RS485 A → VFD A
+RS485 B → VFD B
+GND     → VFD GND
+
+Note:
+Some VFD manufacturers label A/B opposite.
+If communication fails, swap A and B.
+
+---------------------------------------------------------
+WIFI ACCESS POINT
+---------------------------------------------------------
+
+SSID: Revolve Control
+Password: (none)
+
+Connect to the ESP32 WiFi network and open:
+
+http://192.168.4.1
+
+---------------------------------------------------------
+WEB INTERFACE FUNCTIONS
+---------------------------------------------------------
+
+Forward button
+Writes Modbus register:
+
+0x2000 = 1
+
+Reverse button
+
+0x2000 = 2
+
+Stop button
+
+0x2000 = 0
+
+---------------------------------------------------------
+IMPORTANT SAFETY NOTES
+---------------------------------------------------------
+
+1. Ensure motor is properly wired before testing.
+
+2. Always start with a low frequency setting on the VFD
+   keypad when first testing communication.
+
+3. The VFD may require a reset after changing control
+   source parameters (F0 group).
+
+4. Some VFDs will not run if external terminals are
+   configured as the primary control source.
+
+---------------------------------------------------------
+*/
+
+#include <WiFi.h>
+#include <WebServer.h>
 
 #define RX_PIN 16
 #define TX_PIN 17
-#define RS485_EN 23
+#define DE_PIN 23
 
-uint8_t slave = 1;
+HardwareSerial VFD(2);
+WebServer server(80);
+
+uint8_t addr = 1;
+
+const char* ssid = "Revolve Control";
+const char* password = "";
 
 uint16_t crc16(uint8_t *buf, int len)
 {
   uint16_t crc = 0xFFFF;
 
-  for (int pos = 0; pos < len; pos++)
+  for(int pos=0; pos<len; pos++)
   {
-    crc ^= (uint16_t)buf[pos];
+    crc ^= buf[pos];
 
-    for (int i = 8; i != 0; i--)
+    for(int i=0;i<8;i++)
     {
-      if ((crc & 0x0001) != 0)
+      if(crc & 1)
       {
-        crc >>= 1;
-        crc ^= 0xA001;
+        crc >>=1;
+        crc ^=0xA001;
       }
-      else
-        crc >>= 1;
+      else crc >>=1;
     }
   }
-
   return crc;
 }
 
-void sendPacket(uint8_t *data, int len)
+void sendPacket(uint8_t *packet,int len)
 {
-  uint16_t crc = crc16(data, len);
+  uint16_t crc = crc16(packet,len);
 
-  digitalWrite(RS485_EN, HIGH);
+  digitalWrite(DE_PIN,HIGH);
 
-  VFD.write(data, len);
+  VFD.write(packet,len);
   VFD.write(crc & 0xFF);
   VFD.write(crc >> 8);
 
   VFD.flush();
 
-  digitalWrite(RS485_EN, LOW);
-
-  Serial.print("TX: ");
-
-  for (int i = 0; i < len; i++)
-  {
-    if (data[i] < 16) Serial.print("0");
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
-  }
-
-  Serial.print((crc & 0xFF), HEX);
-  Serial.print(" ");
-  Serial.println((crc >> 8), HEX);
+  digitalWrite(DE_PIN,LOW);
 }
 
-void readResponse()
+void writeRegister(uint16_t reg,uint16_t value)
 {
-  delay(50);
+  uint8_t packet[6];
 
-  Serial.print("RX: ");
+  packet[0]=addr;
+  packet[1]=0x06;
+  packet[2]=reg>>8;
+  packet[3]=reg&0xFF;
+  packet[4]=value>>8;
+  packet[5]=value&0xFF;
 
-  while (VFD.available())
-  {
-    uint8_t b = VFD.read();
-
-    if (b < 16) Serial.print("0");
-    Serial.print(b, HEX);
-    Serial.print(" ");
-  }
-
-  Serial.println();
+  sendPacket(packet,6);
 }
 
-void runCommand()
+void runForward()
 {
-  uint8_t pkt[] = {slave, 0x06, 0x20, 0x00, 0x00, 0x01};
-  sendPacket(pkt, 6);
-  readResponse();
+  writeRegister(0x2000,1);
 }
 
-void stopCommand()
+void runReverse()
 {
-  uint8_t pkt[] = {slave, 0x06, 0x20, 0x00, 0x00, 0x00};
-  sendPacket(pkt, 6);
-  readResponse();
+  writeRegister(0x2000,2);
 }
 
-void setFreq(float hz)
+void stopMotor()
 {
-  uint16_t value = hz * 100;
-
-  uint8_t pkt[] =
-  {
-    slave,
-    0x06,
-    0x20,
-    0x01,
-    (uint8_t)(value >> 8),
-    (uint8_t)(value & 0xFF)
-  };
-
-  sendPacket(pkt, 6);
-  readResponse();
+  writeRegister(0x2000,0);
 }
 
-void readRegister(uint16_t reg)
-{
-  uint8_t pkt[] =
-  {
-    slave,
-    0x03,
-    (uint8_t)(reg >> 8),
-    (uint8_t)(reg & 0xFF),
-    0x00,
-    0x01
-  };
+String page =
+"<!DOCTYPE html>"
+"<html>"
+"<head>"
+"<meta name='viewport' content='width=device-width, initial-scale=1'>"
+"<style>"
+"body{font-family:Helvetica;text-align:center;background:#f5f7fb}"
+"button{font-size:30px;padding:20px;margin:20px;width:250px;border-radius:12px}"
+".f{background:#16a34a;color:white}"
+".r{background:#f59e0b;color:white}"
+".s{background:#dc2626;color:white}"
+"</style>"
+"</head>"
+"<body>"
+"<h1>VFD Control</h1>"
+"<button class='f' onclick=\"fetch('/f')\">Forward</button><br>"
+"<button class='r' onclick=\"fetch('/r')\">Reverse</button><br>"
+"<button class='s' onclick=\"fetch('/s')\">Stop</button>"
+"</body>"
+"</html>";
 
-  sendPacket(pkt, 6);
-  readResponse();
+void handleRoot()
+{
+  server.send(200,"text/html",page);
+}
+
+void handleForward()
+{
+  runForward();
+  server.send(200,"text/plain","Forward");
+}
+
+void handleReverse()
+{
+  runReverse();
+  server.send(200,"text/plain","Reverse");
+}
+
+void handleStop()
+{
+  stopMotor();
+  server.send(200,"text/plain","Stop");
 }
 
 void setup()
 {
   Serial.begin(9600);
 
-  VFD.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  pinMode(DE_PIN,OUTPUT);
+  digitalWrite(DE_PIN,LOW);
 
-  pinMode(RS485_EN, OUTPUT);
-  digitalWrite(RS485_EN, LOW);
+  VFD.begin(9600,SERIAL_8N1,RX_PIN,TX_PIN);
 
-  Serial.println();
-  Serial.println("ESP32 VFD Bridge Ready");
-  Serial.println("Commands:");
-  Serial.println("RUN");
-  Serial.println("STOP");
-  Serial.println("FREQ 50");
-  Serial.println("READ 7000");
-  Serial.println("STATE");
+  WiFi.softAP(ssid,password);
+
+  server.on("/",handleRoot);
+  server.on("/f",handleForward);
+  server.on("/r",handleReverse);
+  server.on("/s",handleStop);
+
+  server.begin();
+
+  Serial.println("VFD Controller Ready");
 }
 
 void loop()
 {
-  if (Serial.available())
-  {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-
-    if (cmd == "RUN")
-      runCommand();
-
-    else if (cmd == "STOP")
-      stopCommand();
-
-    else if (cmd.startsWith("FREQ"))
-    {
-      float hz = cmd.substring(5).toFloat();
-      setFreq(hz);
-    }
-
-    else if (cmd.startsWith("READ"))
-    {
-      uint16_t reg = strtol(cmd.substring(5).c_str(), NULL, 16);
-      readRegister(reg);
-    }
-
-    else if (cmd == "STATE")
-    {
-      readRegister(0x3000);
-    }
-  }
+  server.handleClient();
 }
