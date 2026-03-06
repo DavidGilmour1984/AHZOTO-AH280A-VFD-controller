@@ -1,308 +1,211 @@
-#include <WiFi.h>
-#include <WebServer.h>
+#include <HardwareSerial.h>
 
-#define VFD_RX 16
-#define VFD_TX 17
-#define VFD_DE 23
-
-#define ENC_RX 18
-#define ENC_TX 19
-#define ENC_DE 22
+/* ---------------- RS485 SERIAL PORTS ---------------- */
 
 HardwareSerial VFD(2);
 HardwareSerial ENC(1);
 
-WebServer server(80);
+/* ---------------- VFD PINS ---------------- */
 
-uint8_t addr = 1;
+#define VFD_RX 16
+#define VFD_TX 17
+#define RS485_EN 23
 
-const char* ssid = "Revolve Control";
-const char* password = "";
+/* ---------------- ENCODER PINS ---------------- */
 
-uint16_t encoderPosition = 0;
-float encoderAngle = 0.0;
+#define ENC_RX 18
+#define ENC_TX 19
+#define ENC_EN 4
 
-float setFrequency = 0;
-float vfdFrequency = 0;
+/* ---------------- CONSTANTS ---------------- */
+
+#define COUNTS_PER_REV 32768.0
+
+uint8_t slave = 1;
+uint8_t encSlave = 1;
+
+/* ---------------- CRC FUNCTION ---------------- */
 
 uint16_t crc16(uint8_t *buf, int len)
 {
   uint16_t crc = 0xFFFF;
 
-  for(int pos=0; pos<len; pos++)
+  for (int pos = 0; pos < len; pos++)
   {
     crc ^= buf[pos];
 
-    for(int i=0;i<8;i++)
+    for (int i = 0; i < 8; i++)
     {
-      if(crc & 1)
+      if (crc & 1)
       {
-        crc >>=1;
-        crc ^=0xA001;
+        crc >>= 1;
+        crc ^= 0xA001;
       }
-      else crc >>=1;
+      else crc >>= 1;
     }
   }
+
   return crc;
 }
 
-void sendPacket(uint8_t *packet,int len)
+/* ---------------- VFD FUNCTIONS ---------------- */
+
+void sendPacket(uint8_t *data, int len)
 {
-  uint16_t crc = crc16(packet,len);
+  uint16_t crc = crc16(data,len);
 
-  digitalWrite(VFD_DE,HIGH);
+  digitalWrite(RS485_EN,HIGH);
 
-  VFD.write(packet,len);
+  VFD.write(data,len);
   VFD.write(crc & 0xFF);
   VFD.write(crc >> 8);
 
   VFD.flush();
 
-  digitalWrite(VFD_DE,LOW);
+  digitalWrite(RS485_EN,LOW);
 }
 
-void writeRegister(uint16_t reg,uint16_t value)
+void writeRegister(uint16_t reg, uint16_t value)
 {
-  uint8_t packet[6];
+  uint8_t pkt[]={
+  slave,
+  0x06,
+  (uint8_t)(reg>>8),
+  (uint8_t)(reg&0xFF),
+  (uint8_t)(value>>8),
+  (uint8_t)(value&0xFF)
+  };
 
-  packet[0]=addr;
-  packet[1]=0x06;
-  packet[2]=reg>>8;
-  packet[3]=reg&0xFF;
-  packet[4]=value>>8;
-  packet[5]=value&0xFF;
-
-  sendPacket(packet,6);
+  sendPacket(pkt,6);
 }
 
-void runForward()
+void runForward(){ writeRegister(0x2000,1); }
+void runReverse(){ writeRegister(0x2000,2); }
+void stopMotor(){ writeRegister(0x2000,0); }
+
+/* ---------------- ENCODER FUNCTIONS ---------------- */
+
+void sendEncoderRequest()
 {
-  writeRegister(0x2000,1);
-}
+  uint8_t pkt[]={
+    encSlave,
+    0x03,
+    0x00,
+    0x00,
+    0x00,
+    0x02
+  };
 
-void runReverse()
-{
-  writeRegister(0x2000,2);
-}
+  uint16_t crc = crc16(pkt,6);
 
-void stopMotor()
-{
-  writeRegister(0x2000,0);
-}
+  digitalWrite(ENC_EN,HIGH);
 
-void setVFDfreq(float hz)
-{
-  uint16_t value = hz * 100;
-  writeRegister(0x2001,value);
-}
+  ENC.write(pkt,6);
+  ENC.write(crc & 0xFF);
+  ENC.write(crc >> 8);
 
-void readVFDFrequency()
-{
-  uint8_t frame[8];
-
-  frame[0]=addr;
-  frame[1]=0x03;
-  frame[2]=0x21;
-  frame[3]=0x03;
-  frame[4]=0x00;
-  frame[5]=0x01;
-
-  uint16_t crc = crc16(frame,6);
-
-  frame[6]=crc & 0xFF;
-  frame[7]=crc >> 8;
-
-  digitalWrite(VFD_DE,HIGH);
-  VFD.write(frame,8);
-  VFD.flush();
-  digitalWrite(VFD_DE,LOW);
-
-  delay(5);
-
-  if(VFD.available() >= 7)
-  {
-    uint8_t resp[7];
-
-    for(int i=0;i<7;i++)
-      resp[i]=VFD.read();
-
-    uint16_t raw = resp[3]<<8 | resp[4];
-
-    vfdFrequency = raw / 100.0;
-  }
-}
-
-void readEncoder()
-{
-  uint8_t frame[8];
-
-  frame[0]=1;
-  frame[1]=0x03;
-  frame[2]=0x00;
-  frame[3]=0x00;
-  frame[4]=0x00;
-  frame[5]=0x01;
-
-  uint16_t crc = crc16(frame,6);
-
-  frame[6]=crc & 0xFF;
-  frame[7]=crc >> 8;
-
-  digitalWrite(ENC_DE,HIGH);
-  ENC.write(frame,8);
   ENC.flush();
-  digitalWrite(ENC_DE,LOW);
 
-  delay(5);
+  digitalWrite(ENC_EN,LOW);
+}
 
-  if(ENC.available() >= 7)
+bool readEncoder(uint32_t &pos)
+{
+  uint8_t buffer[32];
+  int index = 0;
+  unsigned long start = millis();
+
+  while(millis() - start < 30)
   {
-    uint8_t resp[7];
+    while(ENC.available())
+    {
+      buffer[index++] = ENC.read();
 
-    for(int i=0;i<7;i++)
-      resp[i]=ENC.read();
+      if(index >= 9)
+      {
+        for(int i = 0; i <= index - 9; i++)
+        {
+          if(buffer[i] == encSlave &&
+             buffer[i+1] == 0x03 &&
+             buffer[i+2] == 0x04)
+          {
+            uint16_t crc_rx = buffer[i+7] | (buffer[i+8] << 8);
+            uint16_t crc_calc = crc16(&buffer[i],7);
 
-    encoderPosition = resp[3]<<8 | resp[4];
+            if(crc_rx == crc_calc)
+            {
+              pos =
+              ((uint32_t)buffer[i+3] << 24) |
+              ((uint32_t)buffer[i+4] << 16) |
+              ((uint32_t)buffer[i+5] << 8)  |
+              buffer[i+6];
 
-    encoderAngle = encoderPosition * 360.0 / 32768.0;
-  }
-}
+              return true;
+            }
+          }
+        }
+      }
 
-String page =
-"<!DOCTYPE html>"
-"<html>"
-"<head>"
-"<meta name='viewport' content='width=device-width, initial-scale=1'>"
-"<style>"
-"body{font-family:Helvetica;text-align:center;background:#f5f7fb}"
-"h1{font-size:40px}"
-".angle{font-size:70px;margin:30px}"
-"button{font-size:30px;padding:20px;margin:20px;width:250px;border-radius:12px}"
-".f{background:#16a34a;color:white}"
-".r{background:#f59e0b;color:white}"
-".s{background:#dc2626;color:white}"
-".set{background:#2563eb;color:white}"
-"input{font-size:28px;padding:10px;width:200px;text-align:center}"
-"</style>"
-"<script>"
-"function update(){"
-
-"fetch('/angle').then(r=>r.text()).then(t=>{"
-"document.getElementById('angle').innerHTML=t+' deg';"
-"});"
-
-"fetch('/freq').then(r=>r.text()).then(t=>{"
-"document.getElementById('freqread').innerHTML=t+' Hz';"
-"});"
-
-"}"
-
-"setInterval(update,300);"
-
-"function setFreq(){"
-"let f=document.getElementById('freq').value;"
-"fetch('/setfreq?f='+f);"
-"}"
-
-"</script>"
-"</head>"
-"<body onload='update()'>"
-
-"<h1>Encoder Angle</h1>"
-"<div id='angle' class='angle'>0</div>"
-
-"<h1>VFD Frequency</h1>"
-"<div id='freqread' class='angle'>0</div>"
-
-"<h1>Set Frequency</h1>"
-"<input id='freq' type='number' step='0.1'>"
-"<br>"
-"<button class='set' onclick='setFreq()'>Set Frequency</button>"
-
-"<h1>VFD Control</h1>"
-"<button class='f' onclick=\"fetch('/f')\">Forward</button><br>"
-"<button class='r' onclick=\"fetch('/r')\">Reverse</button><br>"
-"<button class='s' onclick=\"fetch('/s')\">Stop</button>"
-
-"</body>"
-"</html>";
-
-void handleRoot()
-{
-  server.send(200,"text/html",page);
-}
-
-void handleForward()
-{
-  runForward();
-  server.send(200,"text/plain","Forward");
-}
-
-void handleReverse()
-{
-  runReverse();
-  server.send(200,"text/plain","Reverse");
-}
-
-void handleStop()
-{
-  stopMotor();
-  server.send(200,"text/plain","Stop");
-}
-
-void handleAngle()
-{
-  server.send(200,"text/plain",String(encoderAngle,2));
-}
-
-void handleFreq()
-{
-  server.send(200,"text/plain",String(vfdFrequency,2));
-}
-
-void handleSetFreq()
-{
-  if(server.hasArg("f"))
-  {
-    float f = server.arg("f").toFloat();
-    setFrequency = f;
-    setVFDfreq(f);
+      if(index >= 31) index = 0;
+    }
   }
 
-  server.send(200,"text/plain","OK");
+  return false;
 }
+
+/* ---------------- SETUP ---------------- */
 
 void setup()
 {
   Serial.begin(9600);
 
-  pinMode(VFD_DE,OUTPUT);
-  digitalWrite(VFD_DE,LOW);
+  pinMode(RS485_EN,OUTPUT);
+  pinMode(ENC_EN,OUTPUT);
 
-  pinMode(ENC_DE,OUTPUT);
-  digitalWrite(ENC_DE,LOW);
+  digitalWrite(RS485_EN,LOW);
+  digitalWrite(ENC_EN,LOW);
 
   VFD.begin(9600,SERIAL_8N1,VFD_RX,VFD_TX);
   ENC.begin(9600,SERIAL_8N1,ENC_RX,ENC_TX);
 
-  WiFi.softAP(ssid,password);
-
-  server.on("/",handleRoot);
-  server.on("/f",handleForward);
-  server.on("/r",handleReverse);
-  server.on("/s",handleStop);
-  server.on("/angle",handleAngle);
-  server.on("/freq",handleFreq);
-  server.on("/setfreq",handleSetFreq);
-
-  server.begin();
-
-  Serial.println("VFD Controller Ready");
+  Serial.println("READY");
 }
+
+/* ---------------- LOOP ---------------- */
 
 void loop()
 {
-  readEncoder();
-  readVFDFrequency();
-  server.handleClient();
+  /* ----- SERIAL COMMANDS ----- */
+
+  if(Serial.available())
+  {
+    String cmd=Serial.readStringUntil('\n');
+    cmd.trim();
+
+    if(cmd=="RUN") runForward();
+    else if(cmd=="REVERSE") runReverse();
+    else if(cmd=="STOP") stopMotor();
+  }
+
+  /* ----- ENCODER POLLING ----- */
+
+  static unsigned long lastEncoder = 0;
+
+  if(millis() - lastEncoder > 100)
+  {
+    lastEncoder = millis();
+
+    sendEncoderRequest();
+
+    uint32_t pos;
+
+    if(readEncoder(pos))
+    {
+      float singleTurn = pos % (uint32_t)COUNTS_PER_REV;
+      float angle = singleTurn * 360.0 / COUNTS_PER_REV;
+
+      Serial.print("Angle: ");
+      Serial.println(angle,2);
+    }
+  }
 }
