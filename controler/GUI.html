@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VFD Position Controller</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family:Helvetica,Arial,sans-serif;
+background:#f5f7fb;
+margin:0;
+padding:40px;
+display:flex;
+justify-content:center;
+}
+
+.card{
+background:white;
+padding:30px;
+border-radius:12px;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
+width:420px;
+text-align:center;
+}
+
+h1{
+margin-top:0;
+}
+
+.value{
+font-size:48px;
+margin:20px 0;
+}
+
+input{
+font-size:24px;
+width:140px;
+text-align:center;
+padding:6px;
+}
+
+button{
+font-size:22px;
+padding:10px 18px;
+margin:6px;
+border:none;
+border-radius:8px;
+background:#2563eb;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#1e40af;
+}
+
+.stop{
+background:#dc2626;
+}
+
+.connect{
+background:#16a34a;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>VFD Position</h1>
+
+<div>Current Angle</div>
+<div id="angle" class="value">0.00</div>
+
+<div>
+Target Angle
+<br><br>
+<input id="target" type="number" step="0.01">
+</div>
+
+<br>
+
+<button onclick="runForward()">Forward</button>
+<button onclick="runReverse()">Reverse</button>
+<button class="stop" onclick="stopMotor()">Stop</button>
+
+<br><br>
+
+<button class="connect" onclick="connectSerial()">Connect COM</button>
+
+</div>
+
+
+<script>
+
+let port;
+let reader;
+let writer;
+
+/* serial buffer to prevent broken lines */
+
+let serialBuffer="";
+
+let currentAngle=0;
+let targetAngle=null;
+let movingDirection=null;
+
+
+
+async function connectSerial(){
+
+port = await navigator.serial.requestPort();
+
+await port.open({baudRate:9600});
+
+writer = port.writable.getWriter();
+
+reader = port.readable.getReader();
+
+readSerialLoop();
+
+}
+
+
+
+async function readSerialLoop(){
+
+const decoder = new TextDecoder();
+
+while(true){
+
+const {value,done} = await reader.read();
+
+if(done) break;
+
+/* add incoming data to buffer */
+
+serialBuffer += decoder.decode(value);
+
+/* split into lines */
+
+let lines = serialBuffer.split("\n");
+
+/* keep incomplete last line */
+
+serialBuffer = lines.pop();
+
+for(let line of lines){
+
+line = line.trim();
+
+processLine(line);
+
+}
+
+}
+
+}
+
+
+
+function processLine(line){
+
+if(line.startsWith("Angle:")){
+
+let val = parseFloat(line.replace("Angle:",""));
+
+/* reject invalid readings */
+
+if(!isNaN(val) && val >= 0 && val <= 360){
+
+currentAngle = val;
+
+document.getElementById("angle").innerText = currentAngle.toFixed(2);
+
+checkTarget();
+
+}
+
+}
+
+}
+
+
+
+function sendCommand(cmd){
+
+if(!writer) return;
+
+writer.write(new TextEncoder().encode(cmd+"\n"));
+
+}
+
+
+
+function runForward(){
+
+targetAngle = parseFloat(document.getElementById("target").value);
+
+movingDirection = "forward";
+
+sendCommand("RUN");
+
+}
+
+
+
+function runReverse(){
+
+targetAngle = parseFloat(document.getElementById("target").value);
+
+movingDirection = "reverse";
+
+sendCommand("REVERSE");
+
+}
+
+
+
+function stopMotor(){
+
+movingDirection=null;
+
+sendCommand("STOP");
+
+}
+
+
+
+function checkTarget(){
+
+if(targetAngle===null) return;
+
+if(movingDirection==="forward"){
+
+if(currentAngle >= targetAngle){
+
+stopMotor();
+
+}
+
+}
+
+if(movingDirection==="reverse"){
+
+if(currentAngle <= targetAngle){
+
+stopMotor();
+
+}
+
+}
+
+}
+
+
+
+</script>
+
+</body>
+</html>
