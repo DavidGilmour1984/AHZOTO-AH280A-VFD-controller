@@ -6,6 +6,8 @@
 
 HardwareSerial VFD(2);
 
+/* -------- CRC16 -------- */
+
 uint16_t crc16(uint8_t *buf, int len)
 {
   uint16_t crc = 0xFFFF;
@@ -21,44 +23,56 @@ uint16_t crc16(uint8_t *buf, int len)
         crc >>= 1;
         crc ^= 0xA001;
       }
-      else crc >>= 1;
+      else
+      {
+        crc >>= 1;
+      }
     }
   }
 
   return crc;
 }
 
-void sendModbus(uint16_t reg,uint16_t value)
+/* -------- MODBUS SEND -------- */
+
+void sendModbus(uint16_t reg, uint16_t value)
 {
   uint8_t frame[8];
 
-  frame[0]=1;
-  frame[1]=0x06;
-  frame[2]=reg>>8;
-  frame[3]=reg&0xFF;
-  frame[4]=value>>8;
-  frame[5]=value&0xFF;
+  frame[0] = 1;
+  frame[1] = 0x06;
+  frame[2] = reg >> 8;
+  frame[3] = reg & 0xFF;
+  frame[4] = value >> 8;
+  frame[5] = value & 0xFF;
 
-  uint16_t crc=crc16(frame,6);
+  uint16_t crc = crc16(frame, 6);
 
-  frame[6]=crc&0xFF;
-  frame[7]=crc>>8;
+  frame[6] = crc & 0xFF;
+  frame[7] = crc >> 8;
 
   Serial.print("TX: ");
-  for(int i=0;i<8;i++)
+  for (int i = 0; i < 8; i++)
   {
-    Serial.printf("%02X ",frame[i]);
+    Serial.printf("%02X ", frame[i]);
   }
   Serial.println();
 
-  digitalWrite(RS485_EN,HIGH);
-
-  VFD.write(frame,8);
-  VFD.flush();
-
+  /* ensure bus idle before transmit */
   delay(5);
 
-  digitalWrite(RS485_EN,LOW);
+  digitalWrite(RS485_EN, HIGH);
+
+  VFD.write(frame, 8);
+  VFD.flush();
+
+  /* wait for final byte to exit transceiver */
+  delay(12);
+
+  digitalWrite(RS485_EN, LOW);
+
+  /* Modbus silent interval */
+  delay(5);
 }
 
 /* -------- CONTROL FUNCTIONS -------- */
@@ -66,22 +80,22 @@ void sendModbus(uint16_t reg,uint16_t value)
 void setFrequency(float hz)
 {
   uint16_t raw = hz * 200;
-  sendModbus(0x1000,raw);
+  sendModbus(0x1000, raw);
 }
 
 void runForward()
 {
-  sendModbus(0x2000,1);
+  sendModbus(0x2000, 1);
 }
 
 void runReverse()
 {
-  sendModbus(0x2000,2);
+  sendModbus(0x2000, 2);
 }
 
 void stopMotor()
 {
-  sendModbus(0x2000,0);
+  sendModbus(0x2000, 0);
 }
 
 /* -------- SETUP -------- */
@@ -90,10 +104,10 @@ void setup()
 {
   Serial.begin(9600);
 
-  pinMode(RS485_EN,OUTPUT);
-  digitalWrite(RS485_EN,LOW);
+  pinMode(RS485_EN, OUTPUT);
+  digitalWrite(RS485_EN, LOW);
 
-  VFD.begin(9600,SERIAL_8N1,RXD2,TXD2);
+  VFD.begin(9600, SERIAL_8N1, RXD2, TXD2);
 
   Serial.println("VFD controller ready");
   Serial.println("Commands:");
@@ -106,34 +120,34 @@ void setup()
 
 void loop()
 {
-  if(Serial.available())
+  if (Serial.available())
   {
-    String cmd=Serial.readStringUntil('\n');
+    String cmd = Serial.readStringUntil('\n');
     cmd.trim();
 
-    if(cmd=="s")
+    if (cmd == "s")
     {
       Serial.println("STOP");
       stopMotor();
       return;
     }
 
-    char dir = cmd.charAt(cmd.length()-1);
-    float freq = cmd.substring(0,cmd.length()-1).toFloat();
+    char dir = cmd.charAt(cmd.length() - 1);
+    float freq = cmd.substring(0, cmd.length() - 1).toFloat();
 
     Serial.print("Set frequency ");
     Serial.println(freq);
 
     setFrequency(freq);
 
-    delay(200);   // IMPORTANT delay between commands
+    delay(200);
 
-    if(dir=='f')
+    if (dir == 'f')
     {
       Serial.println("Forward");
       runForward();
     }
-    else if(dir=='r')
+    else if (dir == 'r')
     {
       Serial.println("Reverse");
       runReverse();
