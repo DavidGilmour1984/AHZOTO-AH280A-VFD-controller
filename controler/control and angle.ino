@@ -1,14 +1,9 @@
 #include <HardwareSerial.h>
 
-/* ---------------- RS485 SERIAL PORTS ---------------- */
-
-HardwareSerial VFD(2);
-HardwareSerial ENC(1);
-
 /* ---------------- VFD PINS ---------------- */
 
-#define VFD_RX 16
-#define VFD_TX 17
+#define RXD2 16
+#define TXD2 17
 #define RS485_EN 23
 
 /* ---------------- ENCODER PINS ---------------- */
@@ -17,14 +12,16 @@ HardwareSerial ENC(1);
 #define ENC_TX 19
 #define ENC_EN 4
 
-/* ---------------- CONSTANTS ---------------- */
-
 #define COUNTS_PER_REV 32768.0
 
-uint8_t slave = 1;
+HardwareSerial VFD(2);
+HardwareSerial ENC(1);
+
 uint8_t encSlave = 1;
 
-/* ---------------- CRC FUNCTION ---------------- */
+volatile float encoderAngle = 0;
+
+/* ---------------- CRC16 ---------------- */
 
 uint16_t crc16(uint8_t *buf, int len)
 {
@@ -48,42 +45,73 @@ uint16_t crc16(uint8_t *buf, int len)
   return crc;
 }
 
-/* ---------------- VFD FUNCTIONS ---------------- */
+/* =====================================================
+   VFD MODBUS SEND (UNCHANGED)
+   ===================================================== */
 
-void sendPacket(uint8_t *data, int len)
+void sendModbus(uint16_t reg, uint16_t value)
 {
-  uint16_t crc = crc16(data,len);
+  uint8_t frame[8];
 
-  digitalWrite(RS485_EN,HIGH);
+  frame[0] = 1;
+  frame[1] = 0x06;
+  frame[2] = reg >> 8;
+  frame[3] = reg & 0xFF;
+  frame[4] = value >> 8;
+  frame[5] = value & 0xFF;
 
-  VFD.write(data,len);
-  VFD.write(crc & 0xFF);
-  VFD.write(crc >> 8);
+  uint16_t crc = crc16(frame, 6);
 
+  frame[6] = crc & 0xFF;
+  frame[7] = crc >> 8;
+
+  Serial.print("TX: ");
+  for (int i = 0; i < 8; i++)
+  {
+    Serial.printf("%02X ", frame[i]);
+  }
+  Serial.println();
+
+  delay(5);
+
+  digitalWrite(RS485_EN, HIGH);
+
+  VFD.write(frame, 8);
   VFD.flush();
 
-  digitalWrite(RS485_EN,LOW);
+  delay(12);
+
+  digitalWrite(RS485_EN, LOW);
+
+  delay(5);
 }
 
-void writeRegister(uint16_t reg, uint16_t value)
+/* ---------------- CONTROL FUNCTIONS ---------------- */
+
+void setFrequency(float hz)
 {
-  uint8_t pkt[]={
-  slave,
-  0x06,
-  (uint8_t)(reg>>8),
-  (uint8_t)(reg&0xFF),
-  (uint8_t)(value>>8),
-  (uint8_t)(value&0xFF)
-  };
-
-  sendPacket(pkt,6);
+  uint16_t raw = hz * 200;
+  sendModbus(0x1000, raw);
 }
 
-void runForward(){ writeRegister(0x2000,1); }
-void runReverse(){ writeRegister(0x2000,2); }
-void stopMotor(){ writeRegister(0x2000,0); }
+void runForward()
+{
+  sendModbus(0x2000, 1);
+}
 
-/* ---------------- ENCODER FUNCTIONS ---------------- */
+void runReverse()
+{
+  sendModbus(0x2000, 2);
+}
+
+void stopMotor()
+{
+  sendModbus(0x2000, 0);
+}
+
+/* =====================================================
+   ENCODER
+   ===================================================== */
 
 void sendEncoderRequest()
 {
@@ -93,7 +121,7 @@ void sendEncoderRequest()
     0x00,
     0x00,
     0x00,
-    0x02
+    0x01
   };
 
   uint16_t crc = crc16(pkt,6);
@@ -106,13 +134,16 @@ void sendEncoderRequest()
 
   ENC.flush();
 
+  delay(3);
+
   digitalWrite(ENC_EN,LOW);
 }
 
-bool readEncoder(uint32_t &pos)
+bool readEncoder(uint16_t &pos)
 {
-  uint8_t buffer[32];
+  uint8_t buffer[16];
   int index = 0;
+
   unsigned long start = millis();
 
   while(millis() - start < 30)
@@ -121,91 +152,140 @@ bool readEncoder(uint32_t &pos)
     {
       buffer[index++] = ENC.read();
 
-      if(index >= 9)
+      if(index >= 7)
       {
-        for(int i = 0; i <= index - 9; i++)
+        if(buffer[0] == encSlave &&
+           buffer[1] == 0x03 &&
+           buffer[2] == 0x02)
         {
-          if(buffer[i] == encSlave &&
-             buffer[i+1] == 0x03 &&
-             buffer[i+2] == 0x04)
+          uint16_t crc_rx =
+          buffer[5] |
+          (buffer[6] << 8);
+
+          uint16_t crc_calc =
+          crc16(buffer,5);
+
+          if(crc_rx == crc_calc)
           {
-            uint16_t crc_rx = buffer[i+7] | (buffer[i+8] << 8);
-            uint16_t crc_calc = crc16(&buffer[i],7);
+            pos =
+            ((uint16_t)buffer[3] << 8) |
+             buffer[4];
 
-            if(crc_rx == crc_calc)
-            {
-              pos =
-              ((uint32_t)buffer[i+3] << 24) |
-              ((uint32_t)buffer[i+4] << 16) |
-              ((uint32_t)buffer[i+5] << 8)  |
-              buffer[i+6];
-
-              return true;
-            }
+            return true;
           }
         }
       }
 
-      if(index >= 31) index = 0;
+      if(index >= 15) index = 0;
     }
   }
 
   return false;
 }
 
-/* ---------------- SETUP ---------------- */
+/* =====================================================
+   ENCODER TASK (CORE 1)
+   ===================================================== */
+
+void encoderTask(void *pv)
+{
+  uint16_t pos;
+
+  for(;;)
+  {
+    sendEncoderRequest();
+
+    if(readEncoder(pos))
+    {
+      encoderAngle =
+      pos * 360.0 / COUNTS_PER_REV;
+    }
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+/* =====================================================
+   SETUP
+   ===================================================== */
 
 void setup()
 {
   Serial.begin(9600);
 
-  pinMode(RS485_EN,OUTPUT);
-  pinMode(ENC_EN,OUTPUT);
+  delay(500);
 
-  digitalWrite(RS485_EN,LOW);
-  digitalWrite(ENC_EN,LOW);
+  pinMode(RS485_EN, OUTPUT);
+  digitalWrite(RS485_EN, LOW);
 
-  VFD.begin(9600,SERIAL_8N1,VFD_RX,VFD_TX);
-  ENC.begin(9600,SERIAL_8N1,ENC_RX,ENC_TX);
+  pinMode(ENC_EN, OUTPUT);
+  digitalWrite(ENC_EN, LOW);
 
-  Serial.println("READY");
+  VFD.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  ENC.begin(9600, SERIAL_8N1, ENC_RX, ENC_TX);
+
+  xTaskCreatePinnedToCore(
+    encoderTask,
+    "encoderTask",
+    4000,
+    NULL,
+    1,
+    NULL,
+    1);
+
+  Serial.println("System ready");
 }
 
-/* ---------------- LOOP ---------------- */
+/* =====================================================
+   LOOP (CORE 0)
+   ===================================================== */
 
 void loop()
 {
-  /* ----- SERIAL COMMANDS ----- */
+  static unsigned long lastPrint = 0;
 
-  if(Serial.available())
+  /* print encoder angle */
+
+  if(millis() - lastPrint > 200)
   {
-    String cmd=Serial.readStringUntil('\n');
-    cmd.trim();
+    lastPrint = millis();
 
-    if(cmd=="RUN") runForward();
-    else if(cmd=="REVERSE") runReverse();
-    else if(cmd=="STOP") stopMotor();
+    Serial.println(encoderAngle,2);
   }
 
-  /* ----- ENCODER POLLING ----- */
+  /* handle commands */
 
-  static unsigned long lastEncoder = 0;
-
-  if(millis() - lastEncoder > 100)
+  if (Serial.available())
   {
-    lastEncoder = millis();
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
 
-    sendEncoderRequest();
-
-    uint32_t pos;
-
-    if(readEncoder(pos))
+    if (cmd == "s")
     {
-      float singleTurn = pos % (uint32_t)COUNTS_PER_REV;
-      float angle = singleTurn * 360.0 / COUNTS_PER_REV;
+      Serial.println("STOP");
+      stopMotor();
+      return;
+    }
 
-      Serial.print("Angle: ");
-      Serial.println(angle,2);
+    char dir = cmd.charAt(cmd.length() - 1);
+    float freq = cmd.substring(0, cmd.length() - 1).toFloat();
+
+    Serial.print("Set frequency ");
+    Serial.println(freq);
+
+    setFrequency(freq);
+
+    delay(200);
+
+    if (dir == 'f')
+    {
+      Serial.println("Forward");
+      runForward();
+    }
+    else if (dir == 'r')
+    {
+      Serial.println("Reverse");
+      runReverse();
     }
   }
 }
