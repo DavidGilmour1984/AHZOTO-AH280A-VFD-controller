@@ -8,229 +8,235 @@
 <style>
 
 body{
-  font-family:Helvetica,Arial,sans-serif;
-  background:#f5f7fb;
-  margin:0;
-  padding:30px;
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  min-height:100vh;
-  color:#0f172a;
+font-family:Helvetica,Arial,sans-serif;
+background:#f5f7fb;
+margin:0;
+padding:40px;
+display:flex;
+justify-content:center;
+align-items:flex-start;
+min-height:100vh;
+color:#0f172a;
 }
 
 .card{
-  background:white;
-  width:900px;
-  max-width:95%;
-  padding:30px;
-  border-radius:18px;
-  box-shadow:0 12px 30px rgba(15,23,42,0.12);
+background:white;
+width:1100px;
+max-width:95%;
+padding:40px;
+border-radius:20px;
+box-shadow:0 20px 50px rgba(15,23,42,0.15);
 
-  display:grid;
-  grid-template-columns:420px 1fr;
-  row-gap:14px;
-  column-gap:30px;
+display:grid;
+grid-template-columns:520px 1fr;
+grid-template-rows:auto auto auto 1fr auto;
+column-gap:50px;
+row-gap:24px;
 }
 
 h1{
-  grid-column:1 / -1;
-  margin:0;
-  font-size:34px;
+grid-column:1 / -1;
+margin:0;
+font-size:42px;
+font-weight:700;
 }
 
 .sub{
-  grid-column:1 / -1;
-  color:#64748b;
-  font-size:16px;
+grid-column:1 / -1;
+color:#64748b;
+font-size:18px;
 }
 
 .statusBar{
-  grid-column:1 / -1;
-  display:flex;
-  gap:10px;
+grid-column:1 / -1;
+display:flex;
+gap:12px;
 }
 
 .badge{
-  padding:8px 14px;
-  border-radius:999px;
-  font-size:14px;
-  font-weight:700;
-  background:#e2e8f0;
+padding:10px 18px;
+border-radius:999px;
+font-size:16px;
+font-weight:700;
+background:#e2e8f0;
 }
 
 .badge.connected{
-  background:#dcfce7;
-  color:#166534;
+background:#dcfce7;
+color:#166534;
 }
 
 .badge.moving{
-  background:#dbeafe;
-  color:#1d4ed8;
+background:#dbeafe;
+color:#1d4ed8;
 }
-
-/* LEFT COLUMN */
 
 .angleWrap{
-  grid-column:1;
-  text-align:center;
-}
-
-.angleDisplay{
-  font-size:36px;
-  font-weight:700;
+grid-column:1;
+text-align:center;
 }
 
 .angleLabel{
-  font-size:16px;
-  color:#64748b;
+font-size:18px;
+color:#64748b;
+}
+
+.angleDisplay{
+font-size:72px;
+font-weight:700;
+margin-top:6px;
 }
 
 .dial{
-  width:260px;
-  height:260px;
-  border-radius:50%;
-  position:relative;
-  margin:18px auto;
-  background:
-  radial-gradient(circle at center,#fff 0 44%,#e2e8f0 44.5% 45.5%,#fff 46% 100%);
-  border:10px solid #cbd5e1;
+width:420px;
+height:420px;
+border-radius:50%;
+position:relative;
+margin:30px auto;
+
+background:
+radial-gradient(circle at center,#fff 0 42%,#e2e8f0 43% 45%,#fff 46% 100%);
+
+border:12px solid #cbd5e1;
+box-shadow:inset 0 6px 14px rgba(0,0,0,0.05);
 }
 
-/* corrected dial geometry */
-
 .tick{
-  position:absolute;
-  left:50%;
-  top:6px;
-  width:3px;
-  height:16px;
-  background:#94a3b8;
-  transform-origin:50% 130px;
+position:absolute;
+left:50%;
+top:10px;
+width:3px;
+height:26px;
+background:#94a3b8;
+transform-origin:50% 200px;
 }
 
 .tick.major{
-  height:24px;
-  width:4px;
-  background:#475569;
+height:40px;
+width:5px;
+background:#334155;
 }
 
 .tickLabel{
-  position:absolute;
-  left:50%;
-  top:12px;
-  transform-origin:50% 120px;
-  font-size:14px;
-  font-weight:700;
+position:absolute;
+left:50%;
+top:20px;
+transform-origin:50% 185px;
+font-size:18px;
+font-weight:700;
 }
 
 .pointer{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:6px;
-  height:110px;
-  background:#2563eb;
-  border-radius:8px;
+position:absolute;
+left:50%;
+top:50%;
+width:10px;
+height:160px;
+background:#2563eb;
+border-radius:8px;
 
-  transform:translate(-50%,-100%) rotate(0deg);
-  transform-origin:50% 100%;
+transform-origin:50% 100%;
+transform:translate(-50%,-100%) rotate(0deg);
 }
 
 .pointerTip{
 position:absolute;
-top:-12px;
+top:-16px;
 left:50%;
 width:0;
 height:0;
 
-border-left:10px solid transparent;
-border-right:10px solid transparent;
-border-bottom:16px solid #2563eb;
+border-left:14px solid transparent;
+border-right:14px solid transparent;
+border-bottom:22px solid #2563eb;
 
 transform:translateX(-50%);
 }
 
 .centerDot{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:18px;
-  height:18px;
-  background:#0f172a;
-  border-radius:50%;
-  transform:translate(-50%,-50%);
+position:absolute;
+left:50%;
+top:50%;
+width:24px;
+height:24px;
+background:#0f172a;
+border-radius:50%;
+transform:translate(-50%,-50%);
 }
 
 .targetMarker{
-  position:absolute;
-  left:50%;
-  top:16px;
-  width:4px;
-  height:26px;
-  background:#dc2626;
-  transform-origin:50% 120px;
-  opacity:0;
+position:absolute;
+left:50%;
+top:18px;
+width:6px;
+height:42px;
+background:#dc2626;
+transform-origin:50% 195px;
+opacity:0;
 }
 
 .targetMarker.show{
-  opacity:1;
+opacity:1;
 }
 
-/* RIGHT PANEL */
-
-.controlPanel{
-  grid-column:2;
-  display:flex;
-  flex-direction:column;
-  gap:14px;
+.panel{
+grid-column:2;
+display:flex;
+flex-direction:column;
+gap:18px;
 }
 
-/* TABLE */
-
-.infoTable{
-  width:100%;
-  border-collapse:collapse;
-  font-size:15px;
+.panelCard{
+background:#f8fafc;
+border:1px solid #e2e8f0;
+border-radius:16px;
+padding:20px;
 }
 
-.infoTable td{
-  border:1px solid #e2e8f0;
-  padding:8px 10px;
+.panelRow{
+display:flex;
+justify-content:space-between;
+align-items:center;
+font-size:20px;
+margin-bottom:14px;
 }
 
-.infoTable td:first-child{
-  background:#f8fafc;
-  font-weight:600;
+.panelRow:last-child{
+margin-bottom:0;
 }
 
-.infoValue{
-  text-align:right;
-  font-weight:700;
+.panelValue{
+font-size:30px;
+font-weight:700;
 }
 
-.infoTable input{
-  width:90px;
-  font-size:15px;
-  padding:4px;
-  text-align:right;
+.panelCard input{
+width:140px;
+font-size:24px;
+padding:10px;
+border-radius:10px;
+border:1px solid #cbd5e1;
+text-align:right;
 }
-
-/* BUTTONS */
 
 .buttonGrid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:16px;
 }
 
 button{
-  font-size:18px;
-  padding:10px;
-  border:none;
-  border-radius:12px;
-  cursor:pointer;
-  color:white;
+font-size:22px;
+padding:16px;
+border:none;
+border-radius:14px;
+cursor:pointer;
+color:white;
+transition:0.15s;
+}
+
+button:hover{
+transform:translateY(-2px);
 }
 
 .connect{background:#16a34a;}
@@ -239,16 +245,14 @@ button{
 .stop{background:#dc2626;}
 
 .full{
-  grid-column:1 / -1;
+grid-column:1 / -1;
 }
 
 .note{
-  grid-column:1 / -1;
-  font-size:14px;
-  color:#64748b;
+grid-column:1 / -1;
+font-size:15px;
+color:#64748b;
 }
-
-/* MOBILE */
 
 @media (max-width:900px){
 
@@ -257,14 +261,19 @@ grid-template-columns:1fr;
 }
 
 .dial{
-width:220px;
-height:220px;
+width:260px;
+height:260px;
+}
+
+.angleDisplay{
+font-size:52px;
 }
 
 }
 
 </style>
-
+</head>
+<body>
 
 <div class="card">
 
@@ -279,13 +288,13 @@ Live angle display with serial control for clockwise and anticlockwise motion
 <div id="moveBadge" class="badge">Stopped</div>
 </div>
 
-
 <div class="angleWrap">
 
 <div class="angleLabel">Current Angle</div>
 <div id="angleDisplay" class="angleDisplay">0.00°</div>
 
 <div id="dial" class="dial">
+
 <div id="targetMarker" class="targetMarker"></div>
 
 <div id="pointer" class="pointer">
@@ -293,45 +302,44 @@ Live angle display with serial control for clockwise and anticlockwise motion
 </div>
 
 <div class="centerDot"></div>
+
+</div>
+
+</div>
+
+<div class="panel">
+
+<div class="panelCard">
+
+<div class="panelRow">
+<div>Target Angle</div>
+<div class="panelValue" id="targetReadout">--</div>
+</div>
+
+<div class="panelRow">
+<div>Direction</div>
+<div class="panelValue" id="directionReadout">Stopped</div>
 </div>
 
 </div>
 
+<div class="panelCard">
 
-<div class="controlPanel">
-
-<table class="infoTable">
-
-<tr>
-<td>Current Angle</td>
-<td class="infoValue" id="tableCurrentAngle">0.00°</td>
-</tr>
-
-<tr>
-<td>Set Angle</td>
-<td class="infoValue">
-<input id="target" type="number" step="0.01" min="0" max="360" value="90">
-</td>
-</tr>
-
-<tr>
-<td>Frequency</td>
-<td class="infoValue">
+<div class="panelRow">
+<div>Frequency (Hz)</div>
 <input id="freq" type="number" step="0.1" value="10">
-</td>
-</tr>
+</div>
 
-<tr>
-<td>Status</td>
-<td class="infoValue" id="directionReadout">Stopped</td>
-</tr>
+<div class="panelRow">
+<div>Target Angle</div>
+<input id="target" type="number" step="0.01" min="0" max="360" value="90">
+</div>
 
-</table>
-
+</div>
 
 <div class="buttonGrid">
 
-<button class="connect full" onclick="connectSerial()">Connect</button>
+<button class="connect full" onclick="connectSerial()">Connect Controller</button>
 
 <button class="cw" onclick="runClockwise()">Clockwise</button>
 <button class="ccw" onclick="runAnticlockwise()">Anticlockwise</button>
@@ -342,12 +350,12 @@ Live angle display with serial control for clockwise and anticlockwise motion
 
 </div>
 
-
 <div class="note">
-Drag the dial to set a target angle. You can also type the target angle and frequency directly in the table.
+Drag the dial to set a target angle. The controller streams live angle data and accepts commands in the same format as your firmware interface.
 </div>
 
 </div>
+
 <script>
 let port;
 let reader;
@@ -357,8 +365,7 @@ let serialBuffer = "";
 let currentAngle = 0;
 let targetAngle = null;
 let movingDirection = null;
-const tableCurrentAngle = document.getElementById("tableCurrentAngle");
-const tableFrequency = document.getElementById("tableFrequency");
+
 const angleDisplay = document.getElementById("angleDisplay");
 const pointer = document.getElementById("pointer");
 const targetMarker = document.getElementById("targetMarker");
@@ -379,7 +386,10 @@ function normaliseAngle(angle){
 function updateAngleDisplay(angle){
   currentAngle = normaliseAngle(angle);
   angleDisplay.innerText = currentAngle.toFixed(2) + "°";
-pointer.style.transform = "translateX(-50%) rotate(" + (currentAngle + 180) + "deg)";}
+  pointer.style.transform = "translateX(-50%) rotate(" + currentAngle + "deg)";
+  checkTarget();
+}
+
 function updateTargetDisplay(){
   const raw = parseFloat(targetInput.value);
   if(isNaN(raw)){
@@ -407,6 +417,7 @@ function updateDirectionDisplay(text){
 }
 
 function buildDial(){
+
   for(let i = 0; i < 360; i += 10){
     const tick = document.createElement("div");
     tick.className = (i % 90 === 0) ? "tick major" : "tick";
@@ -414,7 +425,22 @@ function buildDial(){
     dial.appendChild(tick);
   }
 
+}
 
+  const labels = [
+    {text:"0", deg:0},
+    {text:"90", deg:90},
+    {text:"180", deg:180},
+    {text:"270", deg:270}
+  ];
+
+  labels.forEach(item => {
+    const label = document.createElement("div");
+    label.className = "tickLabel";
+    label.innerText = item.text;
+    label.style.transform = "translateX(-50%) rotate(" + item.deg + "deg) translateY(-10px) rotate(" + (-item.deg) + "deg)";
+    dial.appendChild(label);
+  });
 }
 
 async function connectSerial(){
