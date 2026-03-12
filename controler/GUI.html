@@ -8,349 +8,285 @@
 <style>
 
 body{
-  font-family:Helvetica,Arial,sans-serif;
-  background:#f5f7fb;
-  margin:0;
-  padding:40px;
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  min-height:100vh;
-  color:#0f172a;
+font-family:Helvetica,Arial,sans-serif;
+background:#f5f7fb;
+margin:0;
+padding:40px;
+display:flex;
+justify-content:center;
+align-items:flex-start;
+min-height:100vh;
+color:#0f172a;
 }
 
 .card{
-  background:white;
-  width:1000px;
-  max-width:95%;
-  padding:40px;
-  border-radius:18px;
-  box-shadow:0 12px 30px rgba(15,23,42,0.12);
+background:white;
+width:1100px;
+max-width:95%;
+padding:40px;
+border-radius:18px;
+box-shadow:0 20px 50px rgba(0,0,0,0.15);
 
-  display:grid;
-
-  grid-template-columns:520px 1fr;
-
-  /* proper row layout */
-  grid-template-rows:
-    auto   /* title */
-    auto   /* subtitle */
-    auto   /* status */
-    auto   /* dial + info boxes */
-    auto   /* controls + buttons */
-    auto;  /* note */
-
-  column-gap:40px;
-  row-gap:16px;
+display:grid;
+grid-template-columns:520px 1fr;
+column-gap:40px;
+row-gap:20px;
 }
+
 h1{
-  grid-column:1 / -1;
-  margin:0;
-  font-size:42px;
+grid-column:1 / -1;
+margin:0;
+font-size:42px;
 }
 
 .sub{
-  grid-column:1 / -1;
-  color:#64748b;
-  font-size:18px;
-  margin-bottom:10px;
+grid-column:1 / -1;
+color:#64748b;
+font-size:18px;
 }
 
-.statusBar{
-  grid-column:1 / -1;
-  display:flex;
-  gap:12px;
-}
+/* ---------- DIAL ---------- */
 
-.badge{
-  padding:10px 16px;
-  border-radius:999px;
-  font-size:16px;
-  font-weight:700;
-  background:#e2e8f0;
-}
-
-.badge.connected{
-  background:#dcfce7;
-  color:#166534;
-}
-
-.badge.moving{
-  background:#dbeafe;
-  color:#1d4ed8;
-}
-
-/* LEFT COLUMN */
-
-.angleWrap{
-  grid-column:1;
-  grid-row:4;
-  text-align:center;
-}
-
-.angleDisplay{
-  font-size:72px;
-  font-weight:700;
-}
-
-.angleLabel{
-  font-size:18px;
-  color:#64748b;
+.dialWrap{
+grid-column:1;
+display:flex;
+justify-content:center;
+align-items:center;
 }
 
 .dial{
-  width:420px;
-  height:420px;
-  border-radius:50%;
-  position:relative;
-  margin:20px auto;
-  background:
-  radial-gradient(circle at center,#fff 0 44%,#e2e8f0 44.5% 45.5%,#fff 46% 100%);
-  border:12px solid #cbd5e1;
+width:420px;
+height:420px;
+border-radius:50%;
+position:relative;
+
+background:
+radial-gradient(circle,#ffffff 0 65%,#e2e8f0 66%);
+
+border:10px solid #cbd5e1;
 }
 
 .tick{
-  position:absolute;
-  left:50%;
-  top:10px;
-  width:3px;
-  height:24px;
-  background:#94a3b8;
-  transform-origin:50% 200px;
+position:absolute;
+left:50%;
+top:12px;
+width:2px;
+height:20px;
+background:#94a3b8;
+transform-origin:50% 200px;
 }
 
 .tick.major{
-  height:36px;
-  width:4px;
-  background:#475569;
-}
-
-.tickLabel{
-  position:absolute;
-  left:50%;
-  top:18px;
-  transform-origin:50% 188px;
-  font-size:18px;
-  font-weight:700;
+height:30px;
+width:3px;
+background:#0f172a;
 }
 
 .pointer{
-  position:absolute;
-  left:50%;
-  top:40px;
-  width:8px;
-  height:160px;
-  background:#2563eb;
-  border-radius:8px;
-  transform-origin:50% 170px;
+position:absolute;
+left:50%;
+top:70px;
+width:6px;
+height:150px;
+background:#2563eb;
+transform-origin:50% 140px;
+border-radius:4px;
 }
 
-.pointerTip{
-  position:absolute;
-  top:-10px;
-  left:50%;
-  width:22px;
-  height:22px;
-  background:#2563eb;
-  border-radius:50%;
-  transform:translateX(-50%);
+.pointerArrow{
+position:absolute;
+top:-18px;
+left:50%;
+transform:translateX(-50%);
+width:0;
+height:0;
+border-left:12px solid transparent;
+border-right:12px solid transparent;
+border-bottom:18px solid #2563eb;
 }
 
 .centerDot{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:22px;
-  height:22px;
-  background:#0f172a;
-  border-radius:50%;
-  transform:translate(-50%,-50%);
+position:absolute;
+left:50%;
+top:50%;
+width:18px;
+height:18px;
+background:#0f172a;
+border-radius:50%;
+transform:translate(-50%,-50%);
 }
 
 .targetMarker{
-  position:absolute;
-  left:50%;
-  top:20px;
-  width:5px;
-  height:36px;
-  background:#dc2626;
-  transform-origin:50% 190px;
-  opacity:0;
+position:absolute;
+left:50%;
+top:12px;
+width:4px;
+height:30px;
+background:#ef4444;
+transform-origin:50% 200px;
+opacity:0;
 }
 
 .targetMarker.show{
-  opacity:1;
+opacity:1;
 }
 
-/* SMALL INFO BOXES */
+/* ---------- DATA PANEL ---------- */
 
-.readoutRow{
-  grid-column:2;
-  grid-row:4;
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
+.panel{
+grid-column:2;
+display:flex;
+flex-direction:column;
+gap:20px;
 }
 
-.smallCard{
-  background:#f8fafc;
-  border:1px solid #e2e8f0;
-  border-radius:12px;
-  padding:10px 14px;
-  min-width:120px;
-  text-align:center;
+table{
+width:100%;
+border-collapse:collapse;
+font-size:20px;
 }
 
-.smallValue{
-  font-size:26px;
-  font-weight:700;
+td{
+padding:12px 10px;
+border-bottom:1px solid #e2e8f0;
 }
 
-.smallLabel{
-  display:none;
+td:first-child{
+color:#64748b;
 }
 
-/* INPUTS LEFT UNDER DIAL */
-
-.controls{
-  grid-column:1;
-  grid-row:5;
-  display:grid;
-  grid-template-columns:1fr;
-  gap:12px;
-  max-width:420px;
-  margin:auto;
-}
-
-.controlBox{
-  background:#f8fafc;
-  border:1px solid #e2e8f0;
-  border-radius:14px;
-  padding:18px;
+.value{
+font-weight:700;
+text-align:right;
 }
 
 input{
-  width:100%;
-  font-size:28px;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #cbd5e1;
+width:120px;
+font-size:22px;
+padding:6px;
+border-radius:8px;
+border:1px solid #cbd5e1;
+text-align:right;
 }
 
-/* BUTTONS RIGHT */
+/* ---------- BUTTONS ---------- */
 
-.buttonGrid{
-  grid-column:2;
-  grid-row:5;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
+.buttonRow{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;
+margin-top:10px;
 }
 
 button{
-  font-size:22px;
-  padding:14px;
-  border:none;
-  border-radius:14px;
-  cursor:pointer;
-  color:white;
+font-size:20px;
+padding:14px;
+border:none;
+border-radius:10px;
+cursor:pointer;
+font-weight:700;
+color:white;
 }
 
-.connect{background:#16a34a;}
+.connect{background:#22c55e;}
 .cw{background:#2563eb;}
 .ccw{background:#7c3aed;}
-.stop{background:#dc2626;}
+.stop{background:#ef4444;}
 
 .full{
-  grid-column:1 / -1;
-}
-
-.note{
-  grid-column:1 / -1;
-  margin-top:10px;
-  font-size:15px;
-  color:#64748b;
-}
-
-/* MOBILE */
-
-@media (max-width:900px){
-
-.card{
-grid-template-columns:1fr;
-}
-
-.dial{
-width:260px;
-height:260px;
-}
-
+grid-column:1 / -1;
 }
 
 </style>
 </head>
+
 <body>
 
 <div class="card">
-  <h1>Revolve Stage</h1>
-  <div class="sub">Live angle display with serial control for clockwise and anticlockwise motion</div>
 
-  <div class="statusBar">
-    <div id="connectBadge" class="badge">Not Connected</div>
-    <div id="moveBadge" class="badge">Stopped</div>
-  </div>
+<h1>Rotary Stage Controller</h1>
 
-  <div class="angleWrap">
-    <div class="angleLabel">Current Angle</div>
-    <div id="angleDisplay" class="angleDisplay">0.00°</div>
+<div class="sub">
+Encoder angle monitoring and direct VFD serial control
+</div>
 
-    <div class="dialShell">
-      <div id="dial" class="dial">
-        <div id="targetMarker" class="targetMarker"></div>
-        <div id="pointer" class="pointer">
-          <div class="pointerTip"></div>
-        </div>
-        <div class="centerDot"></div>
-      </div>
-    </div>
-  </div>
+<div class="dialWrap">
 
-  <div class="readoutRow">
-    <div class="smallCard">
-      <div class="smallLabel">Target Angle</div>
-      <div id="targetReadout" class="smallValue">--</div>
-    </div>
-    <div class="smallCard">
-      <div class="smallLabel">Direction</div>
-      <div id="directionReadout" class="smallValue">Stopped</div>
-    </div>
-  </div>
+<div id="dial" class="dial">
 
-  <div class="controls">
-    <div class="controlBox">
-      <label for="freq">Frequency (Hz)</label>
-      <input id="freq" type="number" step="0.1" value="10">
-    </div>
+<div id="targetMarker" class="targetMarker"></div>
 
-    <div class="controlBox">
-      <label for="target">Target Angle (0–360)</label>
-      <input id="target" type="number" step="0.01" min="0" max="360" value="90">
-    </div>
-  </div>
+<div id="pointer" class="pointer">
+<div class="pointerArrow"></div>
+</div>
 
-  <div class="buttonGrid">
-    <button class="connect full" onclick="connectSerial()">Connect Controller</button>
-    <button class="cw" onclick="runClockwise()">Clockwise</button>
-    <button class="ccw" onclick="runAnticlockwise()">Anticlockwise</button>
-    <button class="stop full" onclick="stopMotor()">Stop</button>
-  </div>
+<div class="centerDot"></div>
 
-  <div class="note">
-    You can drag the dial to set the target angle. The page reads the live angle from the controller and sends commands in the format your firmware expects.
-  </div>
+</div>
+
+</div>
+
+<div class="panel">
+
+<table>
+
+<tr>
+<td>Current Angle</td>
+<td class="value" id="angleDisplay">0.00°</td>
+</tr>
+
+<tr>
+<td>Target Angle</td>
+<td class="value" id="targetReadout">--</td>
+</tr>
+
+<tr>
+<td>Direction</td>
+<td class="value" id="directionReadout">Stopped</td>
+</tr>
+
+<tr>
+<td>Frequency (Hz)</td>
+<td class="value">
+<input id="freq" type="number" step="0.1" value="10">
+</td>
+</tr>
+
+<tr>
+<td>Set Target</td>
+<td class="value">
+<input id="target" type="number" step="0.01" min="0" max="360" value="90">
+</td>
+</tr>
+
+</table>
+
+<div class="buttonRow">
+
+<button class="connect full" onclick="connectSerial()">
+Connect Controller
+</button>
+
+<button class="cw" onclick="runClockwise()">
+Clockwise
+</button>
+
+<button class="ccw" onclick="runAnticlockwise()">
+Anticlockwise
+</button>
+
+<button class="stop full" onclick="stopMotor()">
+Stop
+</button>
+
+</div>
+
+</div>
+
 </div>
 
 <script>
+
 let port;
 let reader;
 let writer;
@@ -365,227 +301,284 @@ const pointer = document.getElementById("pointer");
 const targetMarker = document.getElementById("targetMarker");
 const targetReadout = document.getElementById("targetReadout");
 const directionReadout = document.getElementById("directionReadout");
-const connectBadge = document.getElementById("connectBadge");
-const moveBadge = document.getElementById("moveBadge");
 const dial = document.getElementById("dial");
 const targetInput = document.getElementById("target");
 const freqInput = document.getElementById("freq");
 
 function normaliseAngle(angle){
-  let a = angle % 360;
-  if(a < 0) a += 360;
-  return a;
+let a = angle % 360;
+if(a < 0) a += 360;
+return a;
 }
 
 function updateAngleDisplay(angle){
-  currentAngle = normaliseAngle(angle);
-  angleDisplay.innerText = currentAngle.toFixed(2) + "°";
-  pointer.style.transform = "translateX(-50%) rotate(" + currentAngle + "deg)";
-  checkTarget();
+
+currentAngle = normaliseAngle(angle);
+
+angleDisplay.innerText = currentAngle.toFixed(2) + "°";
+
+pointer.style.transform =
+"translateX(-50%) rotate(" + currentAngle + "deg)";
+
+checkTarget();
+
 }
 
 function updateTargetDisplay(){
-  const raw = parseFloat(targetInput.value);
-  if(isNaN(raw)){
-    targetAngle = null;
-    targetReadout.innerText = "--";
-    targetMarker.classList.remove("show");
-    return;
-  }
 
-  targetAngle = normaliseAngle(raw);
-  targetReadout.innerText = targetAngle.toFixed(2) + "°";
-  targetMarker.style.transform = "translateX(-50%) rotate(" + targetAngle + "deg)";
-  targetMarker.classList.add("show");
+const raw = parseFloat(targetInput.value);
+
+if(isNaN(raw)){
+targetAngle = null;
+targetReadout.innerText="--";
+targetMarker.classList.remove("show");
+return;
+}
+
+targetAngle = normaliseAngle(raw);
+
+targetReadout.innerText = targetAngle.toFixed(2)+"°";
+
+targetMarker.style.transform =
+"translateX(-50%) rotate("+targetAngle+"deg)";
+
+targetMarker.classList.add("show");
+
 }
 
 function updateDirectionDisplay(text){
-  directionReadout.innerText = text;
-  moveBadge.innerText = text;
 
-  if(text === "Stopped"){
-    moveBadge.className = "badge";
-  }else{
-    moveBadge.className = "badge moving";
-  }
+directionReadout.innerText = text;
+
 }
 
 function buildDial(){
-  for(let i = 0; i < 360; i += 10){
-    const tick = document.createElement("div");
-    tick.className = (i % 90 === 0) ? "tick major" : "tick";
-    tick.style.transform = "translateX(-50%) rotate(" + i + "deg)";
-    dial.appendChild(tick);
-  }
 
-  const labels = [
-    {text:"0", deg:0},
-    {text:"90", deg:90},
-    {text:"180", deg:180},
-    {text:"270", deg:270}
-  ];
+for(let i=0;i<360;i+=10){
 
-  labels.forEach(item => {
-    const label = document.createElement("div");
-    label.className = "tickLabel";
-    label.innerText = item.text;
-    label.style.transform = "translateX(-50%) rotate(" + item.deg + "deg) translateY(-10px) rotate(" + (-item.deg) + "deg)";
-    dial.appendChild(label);
-  });
+const tick=document.createElement("div");
+
+tick.className = (i%90===0) ? "tick major" : "tick";
+
+tick.style.transform =
+"translateX(-50%) rotate("+i+"deg)";
+
+dial.appendChild(tick);
+
+}
+
 }
 
 async function connectSerial(){
-  port = await navigator.serial.requestPort();
-  await port.open({baudRate:9600});
 
-  writer = port.writable.getWriter();
-  reader = port.readable.getReader();
+port = await navigator.serial.requestPort();
 
-  connectBadge.innerText = "Connected";
-  connectBadge.className = "badge connected";
+await port.open({baudRate:9600});
 
-  readSerialLoop();
+writer = port.writable.getWriter();
+reader = port.readable.getReader();
+
+readSerialLoop();
+
 }
 
 async function readSerialLoop(){
-  const decoder = new TextDecoder();
 
-  while(true){
-    const {value, done} = await reader.read();
-    if(done) break;
+const decoder=new TextDecoder();
 
-    serialBuffer += decoder.decode(value);
+while(true){
 
-    let lines = serialBuffer.split("\n");
-    serialBuffer = lines.pop();
+const {value,done}=await reader.read();
+if(done) break;
 
-    for(let line of lines){
-      line = line.trim();
-      processLine(line);
-    }
-  }
+serialBuffer += decoder.decode(value);
+
+let lines = serialBuffer.split("\n");
+
+serialBuffer = lines.pop();
+
+for(let line of lines){
+
+line=line.trim();
+
+processLine(line);
+
+}
+
+}
+
 }
 
 function processLine(line){
-  const val = parseFloat(line);
 
-  if(!isNaN(val) && val >= 0 && val <= 360){
-    updateAngleDisplay(val);
-  }
+const val=parseFloat(line);
+
+if(!isNaN(val) && val>=0 && val<=360){
+
+updateAngleDisplay(val);
+
+}
+
 }
 
 async function sendCommand(cmd){
-  if(!writer) return;
-  await writer.write(new TextEncoder().encode(cmd + "\n"));
+
+if(!writer) return;
+
+await writer.write(new TextEncoder().encode(cmd+"\n"));
+
 }
 
 function getFrequency(){
-  const f = parseFloat(freqInput.value);
-  if(isNaN(f) || f <= 0) return null;
-  return f;
+
+const f=parseFloat(freqInput.value);
+
+if(isNaN(f) || f<=0) return null;
+
+return f;
+
 }
 
 function runClockwise(){
-  updateTargetDisplay();
 
-  const f = getFrequency();
-  if(f === null) return;
+updateTargetDisplay();
 
-  movingDirection = "clockwise";
-  updateDirectionDisplay("Clockwise");
+const f=getFrequency();
 
-  sendCommand(f + "f");
+if(f===null) return;
+
+movingDirection="clockwise";
+
+updateDirectionDisplay("Clockwise");
+
+sendCommand(f+"f");
+
 }
 
 function runAnticlockwise(){
-  updateTargetDisplay();
 
-  const f = getFrequency();
-  if(f === null) return;
+updateTargetDisplay();
 
-  movingDirection = "anticlockwise";
-  updateDirectionDisplay("Anticlockwise");
+const f=getFrequency();
 
-  sendCommand(f + "r");
+if(f===null) return;
+
+movingDirection="anticlockwise";
+
+updateDirectionDisplay("Anticlockwise");
+
+sendCommand(f+"r");
+
 }
 
 function stopMotor(){
-  movingDirection = null;
-  updateDirectionDisplay("Stopped");
-  sendCommand("s");
+
+movingDirection=null;
+
+updateDirectionDisplay("Stopped");
+
+sendCommand("s");
+
 }
 
-function clockwiseDistance(from, to){
-  return (to - from + 360) % 360;
+function clockwiseDistance(from,to){
+
+return (to-from+360)%360;
+
 }
 
-function anticlockwiseDistance(from, to){
-  return (from - to + 360) % 360;
+function anticlockwiseDistance(from,to){
+
+return (from-to+360)%360;
+
 }
 
 function checkTarget(){
-  if(targetAngle === null || movingDirection === null) return;
 
-  const tolerance = 1.0;
+if(targetAngle===null || movingDirection===null) return;
 
-  if(movingDirection === "clockwise"){
-    const remaining = clockwiseDistance(currentAngle, targetAngle);
-    if(remaining <= tolerance || remaining >= 359){
-      stopMotor();
-    }
-  }
+const tolerance=1.0;
 
-  if(movingDirection === "anticlockwise"){
-    const remaining = anticlockwiseDistance(currentAngle, targetAngle);
-    if(remaining <= tolerance || remaining >= 359){
-      stopMotor();
-    }
-  }
+if(movingDirection==="clockwise"){
+
+const remaining=clockwiseDistance(currentAngle,targetAngle);
+
+if(remaining<=tolerance || remaining>=359){
+
+stopMotor();
+
+}
+
+}
+
+if(movingDirection==="anticlockwise"){
+
+const remaining=anticlockwiseDistance(currentAngle,targetAngle);
+
+if(remaining<=tolerance || remaining>=359){
+
+stopMotor();
+
+}
+
+}
+
 }
 
 function pointerAngleFromEvent(event){
-  const rect = dial.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
 
-  const x = event.clientX - cx;
-  const y = event.clientY - cy;
+const rect=dial.getBoundingClientRect();
 
-  let deg = Math.atan2(y, x) * 180 / Math.PI + 90;
-  return normaliseAngle(deg);
+const cx=rect.left+rect.width/2;
+const cy=rect.top+rect.height/2;
+
+const x=event.clientX-cx;
+const y=event.clientY-cy;
+
+let deg=Math.atan2(y,x)*180/Math.PI+90;
+
+return normaliseAngle(deg);
+
 }
 
-let dragging = false;
+let dragging=false;
 
-dial.addEventListener("pointerdown", (event) => {
-  dragging = true;
-  dial.setPointerCapture(event.pointerId);
-  const angle = pointerAngleFromEvent(event);
-  targetInput.value = angle.toFixed(2);
-  updateTargetDisplay();
+dial.addEventListener("pointerdown",(event)=>{
+
+dragging=true;
+
+dial.setPointerCapture(event.pointerId);
+
+const angle=pointerAngleFromEvent(event);
+
+targetInput.value=angle.toFixed(2);
+
+updateTargetDisplay();
+
 });
 
-dial.addEventListener("pointermove", (event) => {
-  if(!dragging) return;
-  const angle = pointerAngleFromEvent(event);
-  targetInput.value = angle.toFixed(2);
-  updateTargetDisplay();
+dial.addEventListener("pointermove",(event)=>{
+
+if(!dragging) return;
+
+const angle=pointerAngleFromEvent(event);
+
+targetInput.value=angle.toFixed(2);
+
+updateTargetDisplay();
+
 });
 
-dial.addEventListener("pointerup", () => {
-  dragging = false;
-});
+dial.addEventListener("pointerup",()=>dragging=false);
+dial.addEventListener("pointercancel",()=>dragging=false);
 
-dial.addEventListener("pointercancel", () => {
-  dragging = false;
-});
-
-targetInput.addEventListener("input", updateTargetDisplay);
+targetInput.addEventListener("input",updateTargetDisplay);
 
 buildDial();
 updateTargetDisplay();
 updateAngleDisplay(0);
 updateDirectionDisplay("Stopped");
+
 </script>
 
 </body>
