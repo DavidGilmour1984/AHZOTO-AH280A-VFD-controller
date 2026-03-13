@@ -1,0 +1,28 @@
+.pointer{
+position:absolute;
+left:50%;
+top:50%;
+width:4px;
+height:130px;
+background:#2563eb;
+
+transform-origin:50% 100%;
+
+transform:translate(-50%,-100%) rotate(0deg);
+
+border-radius:3px;
+}
+
+.pointerArrow{
+position:absolute;
+bottom:100%;
+left:50%;
+transform:translateX(-50%);
+
+width:0;
+height:0;
+
+border-left:10px solid transparent;
+border-right:10px solid transparent;
+border-bottom:16px solid #2563eb;
+}
