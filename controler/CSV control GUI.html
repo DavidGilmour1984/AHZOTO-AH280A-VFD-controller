@@ -1,3 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Revolve Controller</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family:Helvetica,Arial,sans-serif;
+background:#f5f7fb;
+margin:0;
+padding:20px;
+display:flex;
+justify-content:center;
+align-items:flex-start;
+min-height:100vh;
+color:#0f172a;
+}
+
+.card{
+background:white;
+width:1200px;
+max-width:95%;
+padding:20px;
+border-radius:16px;
+box-shadow:0 12px 35px rgba(0,0,0,0.15);
+
+display:grid;
+grid-template-columns:360px 320px 1fr;
+column-gap:30px;
+row-gap:15px;
+}
+
+h1{
+grid-column:1/-1;
+margin:0;
+font-size:30px;
+}
+
+.sub{
+grid-column:1/-1;
+color:#64748b;
+font-size:14px;
+}
+
+/* ---------- DIAL ---------- */
+
+.dialWrap{
+grid-column:1;
+display:flex;
+justify-content:center;
+}
+
+.dial{
+width:300px;
+height:300px;
+border-radius:50%;
+position:relative;
+background:radial-gradient(circle,#fff 0 65%,#e2e8f0 66%);
+border:8px solid #cbd5e1;
+}
+
+/* ticks */
+
+.tick{
+position:absolute;
+left:50%;
+top:10px;
+width:2px;
+height:16px;
+background:#94a3b8;
+transform-origin:50% 145px;
+}
+
+.tick.major{
+height:22px;
+width:3px;
+background:#0f172a;
+}
+
+/* pointer */
+
 .pointer{
 position:absolute;
 left:50%;
@@ -26,3 +110,538 @@ border-left:10px solid transparent;
 border-right:10px solid transparent;
 border-bottom:16px solid #2563eb;
 }
+
+.centerDot{
+position:absolute;
+left:50%;
+top:50%;
+width:14px;
+height:14px;
+background:#0f172a;
+border-radius:50%;
+transform:translate(-50%,-50%);
+}
+
+.targetMarker{
+position:absolute;
+left:50%;
+top:8px;
+width:6px;
+height:40px;
+background:#ef4444;
+transform-origin:50% 145px;
+border-radius:4px;
+opacity:0;
+}
+
+.targetMarker.show{opacity:1}
+
+/* ---------- TABLE ---------- */
+
+.sequencePanel{
+grid-column:2;
+}
+
+.sequenceTable{
+border:1px solid #e2e8f0;
+border-radius:8px;
+max-height:260px;
+overflow:auto;
+}
+
+.sequenceTable table{
+width:100%;
+border-collapse:collapse;
+font-size:14px;
+}
+
+.sequenceTable td{
+padding:6px;
+border-bottom:1px solid #e2e8f0;
+}
+
+.stepActive{
+background:#dbeafe;
+font-weight:700;
+}
+
+/* ---------- CONTROLS ---------- */
+
+.controls{
+grid-column:3;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:16px;
+}
+
+td{
+padding:6px;
+border-bottom:1px solid #e2e8f0;
+}
+
+.value{
+text-align:right;
+font-weight:700;
+}
+
+.buttonRow{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+}
+
+button{
+font-size:14px;
+padding:8px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-weight:700;
+color:white;
+}
+
+.connect{background:#22c55e}
+.next{background:#2563eb}
+.stop{background:#ef4444}
+.jogcw{background:#0ea5e9}
+.jogccw{background:#8b5cf6}
+
+.full{grid-column:1/-1}
+
+input{
+font-size:14px;
+width:70px;
+text-align:right;
+}
+
+/* indicators */
+
+.indicator{
+width:10px;
+height:10px;
+border-radius:50%;
+display:inline-block;
+margin-left:6px;
+}
+
+.green{background:#22c55e}
+.red{background:#ef4444}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>Revolve Controller</h1>
+<div class="sub">Closed-loop stage positioning</div>
+
+<!-- DIAL -->
+
+<div class="dialWrap">
+
+<div id="dial" class="dial">
+
+<div id="targetMarker" class="targetMarker"></div>
+
+<div id="pointer" class="pointer">
+<div class="pointerArrow"></div>
+</div>
+
+<div class="centerDot"></div>
+
+</div>
+
+</div>
+
+<!-- TABLE -->
+
+<div class="sequencePanel">
+
+<h3>Show Positions</h3>
+
+<div class="sequenceTable">
+<table id="sequenceTable"></table>
+</div>
+
+</div>
+
+<!-- CONTROLS -->
+
+<div class="controls">
+
+<table>
+
+<tr>
+<td>Angle</td>
+<td class="value" id="angleDisplay">0°</td>
+</tr>
+
+<tr>
+<td>Target</td>
+<td class="value" id="targetDisplay">--</td>
+</tr>
+
+<tr>
+<td>Status</td>
+<td class="value" id="statusDisplay">Idle</td>
+</tr>
+
+<tr>
+<td>Accuracy</td>
+<td class="value"><input id="tolInput" value="0.6"></td>
+</tr>
+
+<tr>
+<td>Max Corr</td>
+<td class="value"><input id="maxCorrInput" value="6"></td>
+</tr>
+
+<tr>
+<td>ESP32</td>
+<td class="value">
+<span id="espIndicator" class="indicator red"></span>
+</td>
+</tr>
+
+<tr>
+<td>VFD</td>
+<td class="value">
+<span id="vfdIndicator" class="indicator red"></span>
+</td>
+</tr>
+
+</table>
+
+<div class="buttonRow">
+
+<button class="connect full" onclick="connectSerial()">Connect</button>
+
+<input type="file" accept=".csv" onchange="loadCSV(event)">
+
+<button class="next full" onclick="nextStep()">Next Position</button>
+
+<button class="jogcw"
+onmousedown="runCW(10)"
+onmouseup="stopAll()">Jog CW</button>
+
+<button class="jogccw"
+onmousedown="runCCW(10)"
+onmouseup="stopAll()">Jog CCW</button>
+
+<button class="stop full" onclick="stopAll()">STOP</button>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+/* VARIABLES */
+
+let port,reader,writer
+let serialBuffer=""
+
+let currentAngle=0
+let targetAngle=null
+let direction=null
+
+let correctionAttempts=0
+let lastCommandTime=0
+let lastEncoderTime=0
+
+let sequence=[]
+let stepIndex=-1
+
+/* UTIL */
+
+function norm(a){a=a%360;if(a<0)a+=360;return a}
+
+/* BUILD DIAL */
+
+function buildDial(){
+
+const dial=document.getElementById("dial")
+
+for(let i=0;i<360;i+=10){
+
+let t=document.createElement("div")
+
+t.className=(i%90==0)?"tick major":"tick"
+
+t.style.transform="translateX(-50%) rotate("+i+"deg)"
+
+dial.appendChild(t)
+
+}
+
+}
+
+buildDial()
+
+/* SERIAL */
+
+async function connectSerial(){
+
+port=await navigator.serial.requestPort()
+await port.open({baudRate:9600})
+
+writer=port.writable.getWriter()
+reader=port.readable.getReader()
+
+readSerialLoop()
+
+}
+
+async function readSerialLoop(){
+
+const decoder=new TextDecoder()
+
+while(true){
+
+const {value,done}=await reader.read()
+if(done)break
+
+serialBuffer+=decoder.decode(value)
+
+let lines=serialBuffer.split("\n")
+serialBuffer=lines.pop()
+
+for(let l of lines){
+
+let v=parseFloat(l.trim())
+
+if(!isNaN(v)){
+
+updateAngle(v)
+lastEncoderTime=Date.now()
+document.getElementById("espIndicator").className="indicator green"
+
+}
+
+}
+
+}
+
+}
+
+/* CONNECTION MONITOR */
+
+setInterval(()=>{
+
+if(Date.now()-lastEncoderTime>1000)
+document.getElementById("espIndicator").className="indicator red"
+
+},500)
+
+/* MOTOR COMMAND */
+
+async function send(cmd){
+
+if(!writer)return
+
+let now=Date.now()
+
+if(now-lastCommandTime<300)return
+
+lastCommandTime=now
+
+await writer.write(new TextEncoder().encode(cmd+"\n"))
+
+document.getElementById("vfdIndicator").className="indicator green"
+
+}
+
+function runCW(f){
+
+direction="cw"
+send(f+"f")
+statusDisplay.innerText="CW"
+
+}
+
+function runCCW(f){
+
+direction="ccw"
+send(f+"r")
+statusDisplay.innerText="CCW"
+
+}
+
+function stopAll(){
+
+direction=null
+correctionAttempts=0
+
+send("s")
+
+statusDisplay.innerText="STOP"
+
+}
+
+/* ANGLE UPDATE */
+
+function updateAngle(a){
+
+currentAngle=norm(a)
+
+angleDisplay.innerText=currentAngle.toFixed(2)+"°"
+
+pointer.style.transform="translate(-50%,-100%) rotate("+currentAngle+"deg)"
+controlLoop()
+
+}
+
+/* CONTROL LOOP */
+
+function controlLoop(){
+
+if(targetAngle===null)return
+
+let tol=parseFloat(tolInput.value)
+let maxCorr=parseInt(maxCorrInput.value)
+
+let cw=(targetAngle-currentAngle+360)%360
+let ccw=(currentAngle-targetAngle+360)%360
+
+let error=Math.min(cw,ccw)
+
+/* reached */
+
+if(error<=tol){
+
+stopAll()
+statusDisplay.innerText="Locked"
+return
+
+}
+
+/* slow approach */
+
+if(error<3){
+
+if(cw<ccw)runCW(5)
+else runCCW(5)
+
+return
+
+}
+
+/* correction limit */
+
+if(correctionAttempts>=maxCorr){
+
+statusDisplay.innerText="Correction limit"
+stopAll()
+return
+
+}
+
+}
+
+/* CSV */
+
+function loadCSV(e){
+
+let file=e.target.files[0]
+
+let reader=new FileReader()
+
+reader.onload=(x)=>parseCSV(x.target.result)
+
+reader.readAsText(file)
+
+}
+
+function parseCSV(t){
+
+sequence=[]
+stepIndex=-1
+
+let lines=t.split("\n")
+
+for(let l of lines){
+
+let p=l.split(",")
+
+if(p.length<3)continue
+
+sequence.push({
+angle:parseFloat(p[0]),
+dir:p[1].trim(),
+freq:parseFloat(p[2])
+})
+
+}
+
+renderTable()
+
+}
+
+function renderTable(){
+
+let table=document.getElementById("sequenceTable")
+
+table.innerHTML=""
+
+sequence.forEach((s,i)=>{
+
+let r=document.createElement("tr")
+
+if(i===stepIndex)r.classList.add("stepActive")
+
+r.innerHTML=
+"<td>"+(i+1)+"</td>"+
+"<td>"+s.angle+"°</td>"+
+"<td>"+s.dir+"</td>"+
+"<td>"+s.freq+"Hz</td>"
+
+table.appendChild(r)
+
+})
+
+}
+
+/* NEXT STEP */
+
+function nextStep(){
+
+if(sequence.length==0)return
+
+stepIndex++
+
+if(stepIndex>=sequence.length)stepIndex=0
+
+let s=sequence[stepIndex]
+
+targetAngle=norm(s.angle)
+
+targetDisplay.innerText=targetAngle.toFixed(2)+"°"
+
+targetMarker.style.transform=
+"translateX(-50%) rotate("+targetAngle+"deg)"
+
+targetMarker.classList.add("show")
+
+correctionAttempts=0
+
+if(s.dir=="cw")runCW(s.freq)
+else runCCW(s.freq)
+
+renderTable()
+
+}
+
+</script>
+
+</body>
+</html>
