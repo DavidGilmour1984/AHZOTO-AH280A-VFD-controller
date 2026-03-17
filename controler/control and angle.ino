@@ -8,8 +8,8 @@
 
 /* ---------------- ENCODER PINS ---------------- */
 
-#define ENC_RX 18
-#define ENC_TX 19
+#define ENC_RX 19
+#define ENC_TX 18
 #define ENC_EN 4
 
 #define COUNTS_PER_REV 32768.0
