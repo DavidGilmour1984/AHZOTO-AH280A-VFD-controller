@@ -3,11 +3,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <Keypad.h>
 
-/* ---------------- LCD ---------------- */
-
 LiquidCrystal_I2C lcd(0x27,20,4);
-
-/* ---------------- KEYPAD ---------------- */
 
 const byte ROWS=4;
 const byte COLS=4;
@@ -52,18 +48,18 @@ String entry="";
 String currentCommand="";
 
 bool moving=false;
-bool jogActive=false;
+bool positionMode=false;
 
 char direction=0;
 
-float targetAngle=0;
 float baseFreq=0;
 float lastFreq=0;
+float targetAngle=0;
 
-/* emergency stop */
+float prevError=0;
 
-bool starHeld=false;
-unsigned long starPressTime=0;
+unsigned long lastSerialPrint=0;
+unsigned long lastDisplayUpdate=0;
 
 /* ---------------- CRC ---------------- */
 
@@ -136,6 +132,11 @@ sendModbus(0x2000,2);
 void stopMotor()
 {
 sendModbus(0x2000,0);
+
+moving=false;
+positionMode=false;
+currentCommand="";
+lastFreq=0;
 }
 
 /* ---------------- ENCODER ---------------- */
@@ -215,35 +216,25 @@ vTaskDelay(100/portTICK_PERIOD_MS);
 
 void updateDisplay()
 {
+char row[21];
 
+snprintf(row,21," Position    Motion");
 lcd.setCursor(0,0);
-lcd.print("Position");
-lcd.setCursor(12,0);
-lcd.print("Status");
+lcd.print(row);
 
+snprintf(row,21,"%7.2f%c    %s",
+encoderAngle,223,
+moving?(direction=='C'?"RUN CW":"RUN ACW"):"STOP");
 lcd.setCursor(0,1);
-lcd.print(encoderAngle,2);
-lcd.print((char)223);
-lcd.print("        ");
+lcd.print(row);
 
-lcd.setCursor(12,1);
-
-if(moving)
-{
-if(direction=='C') lcd.print("RUN CW ");
-else lcd.print("RUN ACW");
-}
-else lcd.print("STOP   ");
-
+snprintf(row,21,"Current:%-12s",currentCommand.c_str());
 lcd.setCursor(0,2);
-lcd.print("Current: ");
-lcd.print(currentCommand);
-lcd.print("       ");
+lcd.print(row);
 
+snprintf(row,21,"Set:%-16s",entry.c_str());
 lcd.setCursor(0,3);
-lcd.print("Set: ");
-lcd.print(entry);
-lcd.print("           ");
+lcd.print(row);
 }
 
 /* ---------------- SETUP ---------------- */
@@ -257,6 +248,7 @@ Wire.begin(21,22);
 
 lcd.init();
 lcd.backlight();
+lcd.clear();
 
 pinMode(RS485_EN,OUTPUT);
 digitalWrite(RS485_EN,LOW);
@@ -276,6 +268,7 @@ NULL,
 NULL,
 1);
 
+updateDisplay();
 }
 
 /* ---------------- LOOP ---------------- */
@@ -283,25 +276,25 @@ NULL,
 void loop()
 {
 
-char key=keypad.getKey();
+if(millis()-lastSerialPrint>100)
+{
+lastSerialPrint=millis();
+Serial.println(encoderAngle,2);
+}
 
-/* ---------- keypad typing ---------- */
+/* ---------- keypad ---------- */
+
+char key=keypad.getKey();
 
 if(key)
 {
 
-if(key>='0' && key<='9')
-entry+=key;
+if(key>='0' && key<='9') entry+=key;
 
-else if(key=='A' || key=='C')
-entry+=key;
-
-/* execute */
+else if(key=='A' || key=='C') entry+=key;
 
 else if(key=='#')
 {
-
-currentCommand=entry;
 
 int dirIndex=entry.indexOf('A');
 if(dirIndex==-1) dirIndex=entry.indexOf('C');
@@ -311,91 +304,70 @@ if(dirIndex>0)
 
 baseFreq=entry.substring(0,dirIndex).toFloat();
 direction=entry.charAt(dirIndex);
-targetAngle=entry.substring(dirIndex+1).toFloat();
+
+String anglePart=entry.substring(dirIndex+1);
+
+/* keep EXACT user input */
+currentCommand = entry;
+
+if(anglePart.length()>0)
+{
+targetAngle=anglePart.toFloat();
+positionMode=true;
+}
+else
+{
+positionMode=false;
+}
 
 setFrequency(baseFreq);
+lastFreq=baseFreq;
 
 delay(200);
 
 if(direction=='C') runForward();
-if(direction=='A') runReverse();
+else runReverse();
 
 moving=true;
-
 entry="";
 }
 }
-
-/* clear */
 
 else if(key=='*')
 {
 entry="";
-starHeld=true;
-starPressTime=millis();
 }
-
-/* jog ACW */
-
-else if(key=='B')
-{
-setFrequency(5);
-runReverse();
-jogActive=true;
-}
-
-/* jog CW */
 
 else if(key=='D')
 {
-setFrequency(5);
-runForward();
-jogActive=true;
-}
-
-}
-
-/* ---------- jog stop ---------- */
-
-if(jogActive && keypad.getState()==IDLE)
-{
 stopMotor();
-jogActive=false;
 }
 
-/* ---------- emergency stop ---------- */
-
-if(starHeld)
-{
-if(millis()-starPressTime>2000)
-{
-stopMotor();
-moving=false;
-currentCommand="";
-starHeld=false;
 }
-}
-
-if(!key) starHeld=false;
 
 /* ---------- motion control ---------- */
 
-if(moving)
+if(moving && positionMode)
 {
 
 float error=targetAngle-encoderAngle;
+
+/* wrap properly */
 
 if(error>180) error-=360;
 if(error<-180) error+=360;
 
 float absError=abs(error);
 
-/* exponential slowdown */
+/* ---------- LINEAR RAMP FROM 15° ---------- */
 
-if(absError<10 && absError>0.3)
+if(absError<15)
 {
 
-float newFreq=1+(baseFreq-1)*(absError/10.0)*(absError/10.0);
+float newFreq = baseFreq * (absError / 15.0);
+
+/* minimum floor so VFD doesn’t stall */
+if(newFreq < 1) newFreq = 1;
 
 if(abs(newFreq-lastFreq)>0.2)
 {
@@ -405,53 +377,36 @@ lastFreq=newFreq;
 
 }
 
-/* stop conditions */
+/* ---------- RELIABLE STOP LOGIC ---------- */
 
-if(absError<=0.3 ||
-(direction=='C' && error<0) ||
-(direction=='A' && error>0))
-{
-
-stopMotor();
-
-moving=false;
-currentCommand="";
-lastFreq=0;
-
-}
-
-}
-
-/* ---------- serial commands ---------- */
-
-if (Serial.available())
-{
-
-String cmd=Serial.readStringUntil('\n');
-cmd.trim();
-
-if(cmd=="s")
+/* tolerance stop */
+if(absError <= 0.5)
 {
 stopMotor();
-moving=false;
-currentCommand="";
-return;
 }
 
-char dir=cmd.charAt(cmd.length()-1);
-float freq=cmd.substring(0,cmd.length()-1).toFloat();
+/* direction-aware overshoot */
 
-setFrequency(freq);
+else if(direction=='C' && error < 0)
+{
+stopMotor();
+}
+else if(direction=='A' && error > 0)
+{
+stopMotor();
+}
 
-delay(200);
-
-if(dir=='f') runForward();
-else if(dir=='r') runReverse();
+/* store last error */
+prevError=error;
 
 }
 
-/* ---------- update LCD ---------- */
+/* ---------- display ---------- */
 
+if(millis()-lastDisplayUpdate>100)
+{
+lastDisplayUpdate=millis();
 updateDisplay();
+}
 
 }
