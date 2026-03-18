@@ -15,8 +15,8 @@ char keys[ROWS][COLS]={
 {'*','0','#','D'}
 };
 
-byte rowPins[ROWS]={32,33,25,26};
-byte colPins[COLS]={27,14,12,13};
+byte rowPins[ROWS]={13,12,14,27};
+byte colPins[COLS]={26,25,33,32};
 
 Keypad keypad=Keypad(makeKeymap(keys),rowPins,colPins,ROWS,COLS);
 
@@ -218,7 +218,7 @@ void updateDisplay()
 {
 char row[21];
 
-snprintf(row,21," Position    Motion");
+snprintf(row,21,"Position    Motion");
 lcd.setCursor(0,0);
 lcd.print(row);
 
@@ -408,5 +408,56 @@ if(millis()-lastDisplayUpdate>100)
 lastDisplayUpdate=millis();
 updateDisplay();
 }
+/* ---------- serial commands ---------- */
 
+if (Serial.available())
+{
+String cmd=Serial.readStringUntil('\n');
+cmd.trim();
+
+/* STOP */
+
+if(cmd=="s")
+{
+stopMotor();
+return;
+}
+
+/* frequency + direction */
+
+if(cmd.length()>=2)
+{
+
+char dir=cmd.charAt(cmd.length()-1);
+float freq=cmd.substring(0,cmd.length()-1).toFloat();
+
+/* safety */
+if(freq<=0) return;
+
+/* apply */
+
+setFrequency(freq);
+lastFreq=freq;
+
+delay(200);
+
+if(dir=='f')
+{
+direction='C';
+runForward();
+moving=true;
+positionMode=false;
+currentCommand=cmd;
+}
+else if(dir=='r')
+{
+direction='A';
+runReverse();
+moving=true;
+positionMode=false;
+currentCommand=cmd;
+}
+
+}
+}
 }
